@@ -5,11 +5,13 @@
 
 using namespace std;
 
+const int _width = 4, _height = 4;
+
 struct Board{
-    int height = 4;
-    int width = 4;
-    char board[4][4];
-    bool board_available[4][4];
+    int width = _width;
+    int height = _height;
+    char board[_width][_height];
+    bool board_available[_width][_height];
 };
 
 /*
@@ -66,7 +68,6 @@ map<string,int> createMap();
 input: infile name and outfile name.
 output: nothing
 prints all words and almost-words to the file, formatted to be in a hashmap named "m".
-prints the c++ code to produce a function called createMap, which returns the requisite hashmap.
 */
 void populatePairs(string infile, string outfile);
 

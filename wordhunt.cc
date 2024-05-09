@@ -51,7 +51,7 @@ places each character into the proper tile on the Board
 void populateBoard(struct Board &b, string input){
     for(int y=0; y<b.height; y++){
         for(int x=0; x<b.width; x++){
-            b.board[x][y] = input.at(4*y+x);
+            b.board[x][y] = input.at(b.width*y+x);
         }
     }
 }
@@ -154,7 +154,8 @@ void snake(struct Board &b, int x, int y){
 
     current_word += b.board[x][y];
     
-    if(current_word.length() >= 3){    //look for the current word
+    if(current_word.length() >= 3){
+        //look for the current word
         switch(searchDictionary(current_word)){
             //non word and will never be a word
             case 0:
@@ -198,10 +199,10 @@ void findWords(struct Board b){
 prints the board to the terminal
 */
 void printBoard(struct Board b){
-    for(int x=0; x<b.width; x++){
-        for(int y=0; y<b.height; y++){
-            cerr << b.board[y][x];
-            if(y+1 == b.height){
+    for(int y=0; y<b.height; y++){
+        for(int x=0; x<b.width; x++){
+            cerr << b.board[x][y];
+            if(x+1 == b.width){
                 cerr << endl;
             }
             else{
