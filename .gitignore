@@ -1,0 +1,20 @@
+# Build output
+bin/
+build/
+*.o
+*.wasm
+*.data
+word_hunt.js
+
+# Notes and scratch docs; README.md is the only tracked markdown
+*.md
+!README.md
+
+# Editor and OS noise
+.DS_Store
+.vscode/
+.idea/
+
+# Local agent tooling
+.claude/
+claude.md

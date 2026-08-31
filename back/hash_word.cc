@@ -11,11 +11,11 @@ using namespace std;
 //2 is a maybe word
 
 /*
-creates and returns a hashmap of valid an potentially valid words
+creates and returns a hashmap of valid and potentially valid words
 */
 map<string,int> createMap(){
     map<string,int> m;
-    ifstream r("pairs.txt");
+    ifstream r("data/pairs.txt");
     string t;
     int n;
     while(getline(r,t)){
@@ -32,7 +32,7 @@ output: nothing
 prints all words and almost-words to the file, formatted to be in a hashmap named "m".
 should only be run every time english_words.txt is updated.
 */
-//populatePairs("english_words.txt", "pairs.txt");
+//populatePairs("data/english_words.txt", "data/pairs.txt");
 void populatePairs(string infile, string outfile){
     ifstream r(infile);
     ofstream output(outfile);
@@ -47,11 +47,14 @@ void populatePairs(string infile, string outfile){
         output << t << "!" << endl;
     }
 
-    for(int i=0; i<v.size(); i++){
+    //for each word, record every prefix of it that is not already recorded
+    for(size_t i=0; i<v.size(); i++){
         for(int j=v.at(i).length()-1; j>0; j--){
             size = m.size();
             m.insert(pair<string,int>(v.at(i).substr(0,j),2));
-            if(size != m.size()) {m.insert(pair<string,int>(v.at(i).substr(0,j),2));
+
+            //the size only grows if this prefix had not been seen before
+            if(size != (int)m.size()){
                 output << v.at(i).substr(0,j) << "." << endl;
             }
         }

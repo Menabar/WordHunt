@@ -2,9 +2,27 @@
 #define WORDHUNT
 
 #include <string>
+#include <map>
+#include <vector>
 
 using namespace std;
 
+struct Position {
+    int x;
+    int y;
+    Position(int _x = 0, int _y = 0) : x(_x), y(_y) {}
+};
+
+struct WordSolution {
+    string word;
+    vector<Position> path;
+    WordSolution(string w = "", vector<Position> p = vector<Position>()) : word(w), path(p) {}
+};
+
+/*
+board dimensions; the solver is written against these rather than literals,
+so a different rectangle only requires changing them here
+*/
 const int _width = 4, _height = 4;
 
 struct Board{
@@ -40,6 +58,11 @@ finds and outputs all valid words
 void findWords(struct Board b);
 
 /*
+finds and returns all valid words with their paths
+*/
+vector<WordSolution> findWordsWithPaths(struct Board b);
+
+/*
 finds every word combination given a starting tile
 */
 void snake(struct Board &b, int x, int y);
@@ -52,22 +75,23 @@ void freeIt(struct Board &b, int x, int y);
 /*
 checks if the selected tile is a valid candidate
 */
-bool inBounds(struct Board b, int x, int y);
+bool inBounds(const struct Board &b, int x, int y);
 
 /*
 in between step for snake() calling itself that does the bounds checks
 */
-void snakeRecursion(struct Board b, int x, int y);
+void snakeRecursion(struct Board &b, int x, int y);
 
 /*
-creates a returns a hashmap of valid an potentially valid words
+creates and returns a hashmap of valid and potentially valid words
 */
 map<string,int> createMap();
 
 /*
 input: infile name and outfile name.
 output: nothing
-prints all words and almost-words to the file, formatted to be in a hashmap named "m".
+prints all words and almost-words to the file, one per line, marked '!' for a
+complete word and '.' for a prefix. should be run whenever english_words.txt changes.
 */
 void populatePairs(string infile, string outfile);
 

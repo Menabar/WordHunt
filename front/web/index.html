@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Word Hunt Solver</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 6px;
+      color: #ffffff;
+    }
+
+    .subtitle {
+      color: #888;
+      font-size: 0.85rem;
+      margin-bottom: 28px;
+    }
+
+    /* ── Input phase ───────────────────────────────────── */
+    #input-phase { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+
+    .grid-wrapper {
+      border: 2px solid #444;
+      border-radius: 6px;
+      overflow: hidden;
+      display: inline-block;
+      background: #0d0d1a;
+    }
+
+    .letter-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 56px);
+      grid-template-rows: repeat(4, 56px);
+    }
+
+    .letter-grid input {
+      width: 56px;
+      height: 56px;
+      background: #0d0d1a;
+      border: 1px solid #333;
+      color: #f0f0f0;
+      font-size: 1.4rem;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      caret-color: transparent;
+      outline: none;
+      transition: background 0.1s;
+    }
+
+    .letter-grid input:focus { background: #1e2040; border-color: #6c8ef0; }
+    .letter-grid input.filled { color: #a0d8ff; }
+
+    .btn {
+      padding: 10px 32px;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: #4a7cf7;
+      color: #fff;
+    }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary:not(:disabled):hover { background: #6090ff; }
+
+    .btn-secondary {
+      background: #2a2a3e;
+      color: #aaa;
+      border: 1px solid #444;
+      font-size: 0.9rem;
+      padding: 8px 20px;
+    }
+    .btn-secondary:hover { background: #33334a; color: #ddd; }
+
+    /* ── Loading ───────────────────────────────────────── */
+    #loading-phase {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+      padding: 40px;
+    }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid #333;
+      border-top-color: #4a7cf7;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results phase ─────────────────────────────────── */
+    #results-phase { display: none; width: 100%; max-width: 680px; }
+
+    .results-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .results-header h2 { font-size: 1rem; color: #888; font-weight: 400; }
+
+    .results-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 520px) {
+      .results-layout { grid-template-columns: 1fr; }
+    }
+
+    /* ── Result board ──────────────────────────────────── */
+    .board-panel { position: sticky; top: 16px; }
+
+    .board-container {
+      position: relative;
+      display: inline-block;
+      border: 2px solid #444;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #0d0d1a;
+    }
+
+    .board-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 58px);
+      grid-template-rows: repeat(4, 58px);
+    }
+
+    .board-cell {
+      width: 58px; height: 58px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; font-weight: 700;
+      border: 1px solid #2a2a40;
+      color: #c0c0c0;
+      position: relative;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .board-cell.in-path {
+      background: #1e3060;
+      color: #fff;
+    }
+
+    .board-cell.path-start {
+      background: #2a5cad;
+      color: #fff;
+    }
+
+    .path-num {
+      position: absolute;
+      top: 3px; right: 5px;
+      font-size: 0.55rem;
+      font-weight: 700;
+      color: #88aaee;
+      line-height: 1;
+    }
+
+    .board-svg {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none;
+      overflow: visible;
+    }
+
+    .path-line {
+      stroke: #4a7cf7;
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      opacity: 0.7;
+    }
+
+    /* ── Word list ─────────────────────────────────────── */
+    .word-list-panel {
+      max-height: 320px;
+      overflow-y: auto;
+    }
+
+    .word-list-panel::-webkit-scrollbar { width: 4px; }
+    .word-list-panel::-webkit-scrollbar-track { background: transparent; }
+    .word-list-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+    .word-group-header {
+      font-size: 0.75rem;
+      color: #555;
+      letter-spacing: 0.08em;
+      padding: 10px 0 4px;
+      border-bottom: 1px solid #222;
+      margin-bottom: 2px;
+    }
+
+    .word-item {
+      padding: 5px 10px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      transition: background 0.1s, color 0.1s;
+      color: #bbb;
+    }
+
+    .word-item:hover { background: #1e2040; color: #fff; }
+    .word-item.selected { background: #1e3060; color: #a0d8ff; }
+
+    .word-count {
+      display: inline-block;
+      margin-left: 6px;
+      font-size: 0.7rem;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 Word Hunt Solver</h1>
+  <p class="subtitle">Enter your 4×4 board, then click Solve</p>
+
+  <!-- Input phase -->
+  <div id="input-phase">
+    <div class="grid-wrapper">
+      <div class="letter-grid" id="letter-grid"></div>
+    </div>
+    <button class="btn btn-primary" id="solve-btn" disabled>Solve</button>
+  </div>
+
+  <!-- Loading phase -->
+  <div id="loading-phase">
+    <div class="spinner"></div>
+    <p style="color:#666;font-size:0.9rem">Solving…</p>
+  </div>
+
+  <!-- Results phase -->
+  <div id="results-phase">
+    <div class="results-header">
+      <h2 id="results-title"></h2>
+      <button class="btn btn-secondary" id="again-btn">↺ Solve Again</button>
+    </div>
+    <div class="results-layout">
+      <div class="board-panel">
+        <div class="board-container" id="board-container">
+          <div class="board-grid" id="board-display"></div>
+          <svg class="board-svg" id="path-svg"></svg>
+        </div>
+      </div>
+      <div class="word-list-panel" id="word-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // ── Grid input ────────────────────────────────────────────
+    const grid = document.getElementById('letter-grid');
+    const solveBtn = document.getElementById('solve-btn');
+    const inputs = [];
+
+    for (let i = 0; i < 16; i++) {
+      const inp = document.createElement('input');
+      inp.maxLength = 1;
+      inp.dataset.idx = i;
+
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Backspace') {
+          if (inp.value === '' && i > 0) {
+            inputs[i - 1].value = '';
+            inputs[i - 1].classList.remove('filled');
+            inputs[i - 1].focus();
+          } else {
+            inp.value = '';
+            inp.classList.remove('filled');
+          }
+          updateSolveBtn();
+          e.preventDefault();
+        }
+        if (e.key === 'ArrowRight' && i < 15) { inputs[i + 1].focus(); e.preventDefault(); }
+        if (e.key === 'ArrowLeft'  && i > 0)  { inputs[i - 1].focus(); e.preventDefault(); }
+        if (e.key === 'ArrowDown'  && i + 4 < 16) { inputs[i + 4].focus(); e.preventDefault(); }
+        if (e.key === 'ArrowUp'    && i - 4 >= 0) { inputs[i - 4].focus(); e.preventDefault(); }
+      });
+
+      inp.addEventListener('input', e => {
+        const val = inp.value.replace(/[^a-zA-Z]/g, '').slice(-1).toUpperCase();
+        inp.value = val;
+        inp.classList.toggle('filled', val !== '');
+        if (val && i < 15) inputs[i + 1].focus();
+        updateSolveBtn();
+      });
+
+      inp.addEventListener('paste', e => {
+        e.preventDefault();
+        const text = (e.clipboardData || window.clipboardData).getData('text')
+          .replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 16);
+        for (let j = 0; j < text.length && i + j < 16; j++) {
+          inputs[i + j].value = text[j];
+          inputs[i + j].classList.add('filled');
+        }
+        const next = Math.min(i + text.length, 15);
+        inputs[next].focus();
+        updateSolveBtn();
+      });
+
+      grid.appendChild(inp);
+      inputs.push(inp);
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && !solveBtn.disabled) { solveBtn.click(); return; }
+      if (inputs.includes(document.activeElement)) return;
+      if (document.getElementById('input-phase').style.display === 'none') return;
+      if (!/^[a-zA-Z]$/.test(e.key)) return;
+      e.preventDefault();
+      inputs[0].value = e.key.toUpperCase();
+      inputs[0].classList.add('filled');
+      updateSolveBtn();
+      inputs[1].focus();
+    });
+
+    function updateSolveBtn() {
+      solveBtn.disabled = inputs.some(inp => inp.value === '');
+    }
+
+    function getLetters() {
+      return inputs.map(inp => inp.value).join('');
+    }
+
+    // ── WASM loading ──────────────────────────────────────────
+    let wasmReady = false;
+    let wasmModule = null;
+
+    window.Module = {
+      onRuntimeInitialized() {
+        wasmReady = true;
+        wasmModule = Module;
+      }
+    };
+
+    const wasmScript = document.createElement('script');
+    wasmScript.src = 'word_hunt.js';
+    document.body.appendChild(wasmScript);
+
+    // ── Solve ─────────────────────────────────────────────────
+    solveBtn.addEventListener('click', () => {
+      const letters = getLetters();
+      document.getElementById('input-phase').style.display = 'none';
+      document.getElementById('loading-phase').style.display = 'flex';
+
+      function doSolve() {
+        const ptr = wasmModule.ccall('solve_board', 'number', ['string'], [letters]);
+        const json = wasmModule.UTF8ToString(ptr);
+        wasmModule._free(ptr);
+
+        let solutions = JSON.parse(json);
+        // Sort longest first, then alphabetically
+        solutions.sort((a, b) =>
+          b.word.length !== a.word.length
+            ? b.word.length - a.word.length
+            : a.word.localeCompare(b.word)
+        );
+
+        document.getElementById('loading-phase').style.display = 'none';
+        showResults(letters, solutions);
+      }
+
+      if (wasmReady) {
+        doSolve();
+      } else {
+        const check = setInterval(() => {
+          if (wasmReady) { clearInterval(check); doSolve(); }
+        }, 50);
+      }
+    });
+
+    // ── Results ───────────────────────────────────────────────
+    function showResults(letters, solutions) {
+      document.getElementById('results-phase').style.display = 'block';
+      document.getElementById('results-title').textContent =
+        `${solutions.length} words found`;
+
+      // Build board display
+      const boardDisplay = document.getElementById('board-display');
+      boardDisplay.innerHTML = '';
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+          const cell = document.createElement('div');
+          cell.className = 'board-cell';
+          cell.dataset.x = x;
+          cell.dataset.y = y;
+          cell.textContent = letters[y * 4 + x];
+          boardDisplay.appendChild(cell);
+        }
+      }
+
+      // Build word list grouped by length
+      const wordList = document.getElementById('word-list');
+      wordList.innerHTML = '';
+      let currentLen = -1;
+
+      solutions.forEach((sol, idx) => {
+        if (sol.word.length !== currentLen) {
+          currentLen = sol.word.length;
+          const hdr = document.createElement('div');
+          hdr.className = 'word-group-header';
+          hdr.textContent = `── ${currentLen} letters`;
+          wordList.appendChild(hdr);
+        }
+        const item = document.createElement('div');
+        item.className = 'word-item';
+        item.textContent = sol.word;
+        item.addEventListener('click', () => selectWord(idx, solutions, item));
+        wordList.appendChild(item);
+      });
+
+      // Auto-select first word
+      if (solutions.length > 0) {
+        const firstItem = wordList.querySelector('.word-item');
+        if (firstItem) selectWord(0, solutions, firstItem);
+      }
+    }
+
+    function selectWord(idx, solutions, itemEl) {
+      // Deselect previous
+      document.querySelectorAll('.word-item.selected').forEach(el => el.classList.remove('selected'));
+      itemEl.classList.add('selected');
+
+      // Scroll into view
+      itemEl.scrollIntoView({ block: 'nearest' });
+
+      const path = solutions[idx].path;
+
+      // Reset all cells
+      document.querySelectorAll('.board-cell').forEach(cell => {
+        cell.classList.remove('in-path', 'path-start');
+        const num = cell.querySelector('.path-num');
+        if (num) num.remove();
+      });
+
+      // Highlight path cells
+      path.forEach((pos, step) => {
+        const cell = document.querySelector(`.board-cell[data-x="${pos.x}"][data-y="${pos.y}"]`);
+        if (!cell) return;
+        cell.classList.add(step === 0 ? 'path-start' : 'in-path');
+        const num = document.createElement('span');
+        num.className = 'path-num';
+        num.textContent = step + 1;
+        cell.appendChild(num);
+      });
+
+      // Draw SVG path
+      drawPath(path);
+    }
+
+    function drawPath(path) {
+      const svg = document.getElementById('path-svg');
+      svg.innerHTML = '';
+      if (path.length < 2) return;
+
+      const container = document.getElementById('board-container');
+      const cellW = container.offsetWidth / 4;
+      const cellH = container.offsetHeight / 4;
+
+      const points = path.map(pos => ({
+        cx: pos.x * cellW + cellW / 2,
+        cy: pos.y * cellH + cellH / 2,
+      }));
+
+      const polyline = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+      polyline.setAttribute('points', points.map(p => `${p.cx},${p.cy}`).join(' '));
+      polyline.setAttribute('class', 'path-line');
+      svg.appendChild(polyline);
+    }
+
+    // Auto-focus first cell on load so typing works without clicking
+    inputs[0].focus();
+
+    // ── Solve again ───────────────────────────────────────────
+    document.getElementById('again-btn').addEventListener('click', () => {
+      document.getElementById('results-phase').style.display = 'none';
+      inputs.forEach(inp => { inp.value = ''; inp.classList.remove('filled'); });
+      document.getElementById('input-phase').style.display = 'flex';
+      updateSolveBtn();
+      inputs[0].focus();
+    });
+  </script>
+</body>
+</html>
